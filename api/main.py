@@ -72,7 +72,7 @@ def create_app() -> FastAPI:
       return error(f"Error: An unexpected error occurred while fetching the URL")
 
   @app.post("/api/url")
-  async def process_urls(urls: Annotated[list[str], Query()]) -> List[dict]:
+  async def process_urls(urls: list[str]) -> List[dict]:
     results = []
     for url in urls:
       res = await fetch_image(url)
@@ -100,7 +100,7 @@ def create_app() -> FastAPI:
     return results
 
   @app.post("/api/sha1")
-  async def process_sha1s(sha1s: Annotated[list[str], Query()]) -> List[dict]:
+  async def process_sha1s(sha1s: list[str]) -> List[dict]:
     results = []
     for sha1 in sha1s:
       if (invert := r.get(sha1)) is not None:
