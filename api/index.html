@@ -5,56 +5,220 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>invertornot</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
-        rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --accent-color: #bb86fc;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
         body {
-            font-family: 'IBM Plex Mono', monospace;
-            background-color: #121212;
-            color: #CCCCCC;
-            height: 100%;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+        }
+
+        .container {
+            max-width: 960px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1,
+        h2 {
+            color: var(--accent-color);
+            text-align: left;
+            font-family: Consolas, monospace;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin: 20px 0;
+        }
+
+        p,
+        label {
+            line-height: 1.6;
+        }
+
+        input[type="file"] {
+            margin-top: 10px;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: var(--bg-color);
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-family);
+            margin-top: 10px;
+        }
+
+        .image-display-area {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
         }
 
-        a {
-            color: #CCCCCC;
-        }
-
-        #footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 2.5rem;
+        #originalImageContainer,
+        #transformedImageContainer {
+            flex: 1;
             text-align: center;
-            line-height: 2.5rem;
         }
 
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 
 <body>
-    <h1>invertornot</h1>
-    <p>
-        this API purpose is to see how to adapt an image for dark mode.<br>
-        it uses a trained efficientnet model to predict if the image should be inverted or not.<br>
-        check the <a href="/docs/">docs</a> for more info.<br>
-    </p>
-    <footer id="footer">idea taken from <a href="https://gwern.net/idea#invertornot">gwern</a></footer>
+    <div class="container">
+        <h1>invertornot</h1>
+        <p>Make your app's dark mode smarter with invertornot. Our API predicts if an image should be inverted for
+            optimal
+            dark-mode rendering.</p>
+
+        <h3>Try It Out</h3>
+        <p>Upload an image to see how invertornot can transform it for dark mode:</p>
+        <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
+            <input type="file" id="imageUpload" accept="image/*">
+            <button onclick="transformImage()">Transform Image</button>
+            <div class="image-display-area">
+                <div id="originalImageContainer" class="hidden">
+                    <h4>Original Image</h4>
+                    <img src="" alt="Original image" class="result-image">
+                </div>
+
+                <div id="transformedImageContainer" class="hidden">
+                    <h4>Transformed Image</h4>
+                    <img src="" alt="Transformed image" class="result-image">
+                </div>
+
+            </div>
+        </div>
+
+        <p>Despite dark mode's popularity, images often aren't automatically adapted to fit it, creating a visual
+            mismatch and
+            potential eye strain in low-light conditions. Using our API you can make your website more pleasant to use
+            in
+            dark-mode.</p>
+        <p>The API works by training an EfficientNet model on a custom dataset. By using deep learning we are able to
+            have a
+            much more reliable approach to solve this problem, the only alternative being heuristics.</p>
+
+        <p>API documentations are available <a href="/docs/">here.</a></p>
+
+        <p>The dataset was labeled based on those following CSS filters:</p>
+        <ul>
+            <li>invert = 0: <code>filter: grayscale(50%);</code></li>
+            <li>invert = 1: <code>filter: grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg);</code></li>
+        </ul>
+
+        <h4>Usage example:</h4>
+        <pre>
+            <code>
+                curl -X 'POST' \
+                  'https://invertornot.com/api/url' \
+                  -H 'accept: application/json' \
+                  -H 'Content-Type: application/json' \
+                  -d '[
+                  "https://upload.wikimedia.org/wikipedia/commons/e/e3/Queen_Victoria_by_Bassano.jpg"
+                ]'
+            </code>
+        </pre>
+        Response:
+        <pre>
+            <code>
+                [
+                  {
+                    "invert": 0,
+                    "sha1": "da487e2e9855362b4a5f4fdb531c55ae47ac6e1b",
+                    "error": "",
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Queen_Victoria_by_Bassano.jpg"
+                  }
+                ]
+            </code>
+        </pre>
+
+        <div class="footer" style="padding: 20px; font-family: 'Courier New', Courier, monospace;">
+            <div style="float: left;">
+                Made by Mattis Megevand, code <a href="https://github.com/mattismegevand/invertornot/">here</a></div>
+            <div style="float: right;">
+                This idea was inspired by <a href="">Gwern</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function transformImage() {
+            const input = document.getElementById('imageUpload');
+            if (input.files.length > 0) {
+                const formData = new FormData();
+                formData.append('files', input.files[0]);
+
+                try {
+                    const response = await fetch('/api/file', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        const results = await response.json();
+                        const result = results[0];
+
+                        if (result.error && result.error !== "") {
+                            console.error('Error from API:', result.error);
+                        } else {
+                            displayImages(input.files[0], result.invert);
+                        }
+                    } else {
+                        console.error('API call failed:', response.status);
+                    }
+                } catch (error) {
+                    console.error('Error calling the API:', error);
+                }
+            } else {
+                alert('Please select a file to upload.');
+            }
+        }
+
+        function displayImages(file, shouldInvert) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const originalImgContainer = document.getElementById('originalImageContainer');
+                const transformedImgContainer = document.getElementById('transformedImageContainer');
+                const originalImage = originalImgContainer.querySelector('img');
+                const transformedImage = transformedImgContainer.querySelector('img');
+
+                originalImage.src = e.target.result;
+                originalImage.style.display = 'block';
+                originalImgContainer.classList.remove('hidden');
+
+                transformedImage.src = e.target.result;
+                transformedImage.style.display = 'block';
+                transformedImgContainer.classList.remove('hidden');
+                transformedImage.style.filter = shouldInvert === 1 ? 'grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg)' : 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
 </body>
 
 </html>

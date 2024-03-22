@@ -1,10 +1,10 @@
 import hashlib
 import io
-from typing import Annotated, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import aiohttp
 import redis
-from fastapi import FastAPI, Query, UploadFile
+from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from nn import NN
 from PIL import Image
@@ -16,7 +16,9 @@ ONNX_MODEL_PATH = "model.onnx"
 r = redis.Redis(**REDIS_CONFIG)
 nn = NN(ONNX_MODEL_PATH)
 
-def error(message: str, sha1: str = "") -> dict:
+def error(message: str, sha1: str = "", url: str = "") -> dict:
+  if url:
+    return {"invert": -1, "sha1": sha1, "error": message, "url": url}
   return {"invert": -1, "sha1": sha1, "error": message}
 
 def create_app() -> FastAPI:
@@ -42,16 +44,19 @@ def create_app() -> FastAPI:
         results.append(error("No image provided"))
         continue
       if file.content_type not in ["image/jpg", "image/jpeg", "image/png"]:
-        results.append(error("Only jpg, jpeg, and png images are supported"))
+        results.append(error("Only jpg, jpeg, and png (non-transparent) images are supported"))
         continue
       sha1 = hashlib.sha1(content).hexdigest()
       if (invert := r.get(sha1)) is not None:
-        results.append({"invert": invert, "sha1": sha1, "error": ""})
+        results.append({"invert": int(invert), "sha1": sha1, "error": ""})
         continue
       try:
         image = Image.open(io.BytesIO(content)).convert('RGB')
       except IOError:
         results.append(error("Invalid image format", sha1=sha1))
+        continue
+      except Exception as e:
+        results.append(error("An unexpected error occurred while processing the image", sha1=sha1))
         continue
       invert = nn.pred(image)
       r.set(sha1, invert)
@@ -84,16 +89,20 @@ def create_app() -> FastAPI:
         results.appned(error("No image provided"))
         continue
       if content_type not in ["image/jpg", "image/jpeg", "image/png"]:
-        results.append(error("Only jpg, jpeg, and png images are supported"))
+        results.append(error("Only jpg, jpeg, and png (non-transparent) images are supported"))
         continue
       sha1 = hashlib.sha1(content).hexdigest()
       if (invert := r.get(sha1)) is not None:
-        results.append({"invert": invert, "sha1": sha1, "error": "", "url": url})
+        results.append({"invert": int(invert), "sha1": sha1, "error": "", "url": url})
         continue
       try:
         image = Image.open(io.BytesIO(content)).convert('RGB')
       except IOError:
-        return error("Invalid image format")
+        results.append(error("Invalid image format", sha1=sha1, url=url))
+        continue
+      except Exception as e:
+        results.append(error("An unexpected error occurred while processing the image", sha1=sha1, url=url))
+        continue
       invert = nn.pred(image)
       r.set(sha1, invert)
       results.append({"invert": invert, "sha1": sha1, "error": "", "url": url})
@@ -104,10 +113,11 @@ def create_app() -> FastAPI:
     results = []
     for sha1 in sha1s:
       if (invert := r.get(sha1)) is not None:
-        results.append({"invert": invert, "sha1": sha1, "error": ""})
+        results.append({"invert": int(invert), "sha1": sha1, "error": ""})
       else:
         results.append(error("No image found with the provided SHA1 hash"))
     return results
 
   return app
+
 app = create_app()
