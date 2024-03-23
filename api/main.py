@@ -4,14 +4,15 @@ import asyncio
 import hashlib
 import io
 from typing import Any
+import json
 
 import aiohttp
 import redis
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 from PIL import Image
 from starlette.responses import FileResponse
-
 from nn import NN
 
 REDIS_CONFIG = {"host": "localhost", "port": 6379, "decode_responses": True}
@@ -22,8 +23,12 @@ nn = NN(ONNX_MODEL_PATH)
 
 
 def api_result(
-    *, error: str = "", invert: int = -1, sha1: str = "", url: str = "",
-) -> dict[Any, Any]:
+    *,
+    error: str = "",
+    invert: int = -1,
+    sha1: str = "",
+    url: str = "",
+) -> dict[str, Any]:
     result = {"invert": invert, "sha1": sha1, "error": error}
     if url:
         result["url"] = url
@@ -31,7 +36,7 @@ def api_result(
     return result
 
 
-def error(message: str, sha1: str = "", url: str = "") -> dict[Any, Any]:
+def error(message: str, sha1: str = "", url: str = "") -> dict[str, Any]:
     return api_result(
         error=message,
         sha1=sha1,
@@ -39,7 +44,7 @@ def error(message: str, sha1: str = "", url: str = "") -> dict[Any, Any]:
     )
 
 
-async def fetch_image(url: str) -> dict[Any, Any] | tuple[bytes, str]:
+async def fetch_image(url: str) -> dict[str, Any] | tuple[bytes, str]:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, max_redirects=10) as response:
@@ -49,7 +54,8 @@ async def fetch_image(url: str) -> dict[Any, Any] | tuple[bytes, str]:
 
                 content = await response.read()
                 content_type = response.headers.get(
-                    "Content-Type", "application/octet-stream",
+                    "Content-Type",
+                    "application/octet-stream",
                 )
 
                 return content, content_type
@@ -58,8 +64,11 @@ async def fetch_image(url: str) -> dict[Any, Any] | tuple[bytes, str]:
 
 
 def process_content(
-    content: bytes, content_type: str, *, url: str = "",
-) -> dict[Any, Any]:
+    content: bytes,
+    content_type: str,
+    *,
+    url: str = "",
+) -> dict[str, Any]:
     if not content:
         return error("No image provided")
 
@@ -67,6 +76,7 @@ def process_content(
         return error("Only jpg, jpeg, and png (non-transparent) images are supported")
 
     sha1 = hashlib.sha1(content).hexdigest()
+    r.set(url, sha1)
 
     if (invert := r.get(sha1)) is not None:
         return api_result(invert=int(invert), sha1=sha1, url=url)
@@ -103,7 +113,7 @@ def create_app() -> FastAPI:
         return FileResponse("index.html")
 
     @app.post("/api/file")
-    async def process_files(files: list[UploadFile]) -> list[dict[Any, Any]]:
+    async def process_files(files: list[UploadFile]) -> list[dict[str, Any]]:
         results = []
 
         for file in files:
@@ -112,11 +122,19 @@ def create_app() -> FastAPI:
 
         return results
 
-    @app.post("/api/url")
-    async def process_urls(urls: list[str]) -> list[dict[Any, Any]]:
-        fetched = await asyncio.gather(*[fetch_image(url) for url in urls])
+    @app.post("/api/url", response_class=ORJSONResponse)
+    async def process_urls(urls: list[str]) -> list[dict[str, Any]]:
+        urls_json = json.dumps(urls)
+        if (cached := r.get(urls_json)) is not None:
+            return ORJSONResponse(json.loads(cached))
 
-        results = []
+        results = [
+            api_result(invert=int(invert), sha1=sha1, url=url)
+            for url in urls
+            if (sha1 := r.get(url)) is not None and (invert := r.get(sha1)) is not None
+        ]
+        urls = [url for url in urls if url not in [result["url"] for result in results]]
+        fetched = await asyncio.gather(*[fetch_image(url) for url in urls])
 
         for url, res in zip(urls, fetched):
             if isinstance(res, dict):
@@ -125,6 +143,8 @@ def create_app() -> FastAPI:
 
             content, content_type = res
             results.append(process_content(content, content_type, url=url))
+
+        r.set(urls_json, json.dumps(results), ex=86400)
 
         return results
 
