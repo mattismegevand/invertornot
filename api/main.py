@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 from typing import Any
@@ -44,10 +45,12 @@ async def fetch_image(url: str) -> dict[Any, Any] | tuple[bytes, str]:
                 # Check for non-success status
                 if response.status != 200:
                     return error("Failed to fetch image from URL")
+
                 content = await response.read()
                 content_type = response.headers.get(
                     "Content-Type", "application/octet-stream"
                 )
+
                 return content, content_type
     except Exception as e:
         return error(f"Error: An unexpected error occurred while fetching the URL")
@@ -109,11 +112,12 @@ def create_app() -> FastAPI:
         return results
 
     @app.post("/api/url")
-    async def process_urls(urls: list[str]) -> list[dict]:
+    async def process_urls(urls: list[str]) -> list[dict[Any, Any]]:
+        fetched = await asyncio.gather(*[fetch_image(url) for url in urls])
+
         results = []
 
-        for url in urls:
-            res = await fetch_image(url)
+        for url, res in zip(urls, fetched):
             if isinstance(res, dict):
                 results.append(res)
                 continue
