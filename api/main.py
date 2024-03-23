@@ -1,16 +1,19 @@
+from __future__ import annotations
+
+import asyncio
 import hashlib
 import io
 import json
-from typing import List, Tuple, Union
+from typing import Any
 
 import aiohttp
 import redis
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
-from nn import NN
 from PIL import Image
 from starlette.responses import FileResponse
+from nn import NN
 
 REDIS_CONFIG = {"host": "localhost", "port": 6379, "decode_responses": True}
 ONNX_MODEL_PATH = "model.onnx"
@@ -18,118 +21,146 @@ ONNX_MODEL_PATH = "model.onnx"
 r = redis.Redis(**REDIS_CONFIG)
 nn = NN(ONNX_MODEL_PATH)
 
-def error(message: str, sha1: str = "", url: str = "") -> dict:
-  if url:
-    return {"invert": -1, "sha1": sha1, "error": message, "url": url}
-  return {"invert": -1, "sha1": sha1, "error": message}
+
+def api_result(
+    *,
+    error: str = "",
+    invert: int = -1,
+    sha1: str = "",
+    url: str = "",
+) -> dict[str, Any]:
+    result = {"invert": invert, "sha1": sha1, "error": error}
+    if url:
+        result["url"] = url
+
+    return result
+
+
+def error(message: str, sha1: str = "", url: str = "") -> dict[str, Any]:
+    return api_result(
+        error=message,
+        sha1=sha1,
+        url=url,
+    )
+
+
+async def fetch_image(url: str) -> dict[str, Any] | tuple[bytes, str]:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, max_redirects=10) as response:
+                # Check for non-success status
+                if response.status != 200:
+                    return error("Failed to fetch image from URL")
+
+                content = await response.read()
+                content_type = response.headers.get(
+                    "Content-Type",
+                    "application/octet-stream",
+                )
+
+                return content, content_type
+    except Exception:
+        return error("Error: An unexpected error occurred while fetching the URL")
+
+
+def process_content(
+    content: bytes,
+    content_type: str,
+    *,
+    url: str = "",
+) -> dict[str, Any]:
+    if not content:
+        return error("No image provided")
+
+    if content_type not in ("image/jpg", "image/jpeg", "image/png"):
+        return error("Only jpg, jpeg, and png (non-transparent) images are supported")
+
+    sha1 = hashlib.sha1(content).hexdigest()
+    r.set(url, sha1)
+
+    if (invert := r.get(sha1)) is not None:
+        return api_result(invert=int(invert), sha1=sha1, url=url)
+
+    try:
+        image = Image.open(io.BytesIO(content)).convert("RGB")
+    except OSError:
+        return error("Invalid image format", sha1=sha1, url=url)
+    except Exception:
+        return error(
+            "An unexpected error occurred while processing the image",
+            sha1=sha1,
+            url=url,
+        )
+
+    invert = nn.pred(image)
+    r.set(sha1, invert)
+
+    return api_result(invert=invert, sha1=sha1, url=url)
+
 
 def create_app() -> FastAPI:
-  app = FastAPI()
-  app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-  )
+    app = FastAPI()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-  @app.get("/")
-  async def read_index():
-    return FileResponse('index.html')
+    @app.get("/")
+    async def read_index():
+        return FileResponse("index.html")
 
-  @app.post("/api/file")
-  async def process_files(files: List[UploadFile]) -> List[dict]:
-    results = []
-    for file in files:
-      content = await file.read()
-      if not content:
-        results.append(error("No image provided"))
-        continue
-      if file.content_type not in ["image/jpg", "image/jpeg", "image/png"]:
-        results.append(error("Only jpg, jpeg, and png (non-transparent) images are supported"))
-        continue
-      sha1 = hashlib.sha1(content).hexdigest()
-      if (invert := r.get(sha1)) is not None:
-        results.append({"invert": int(invert), "sha1": sha1, "error": ""})
-        continue
-      try:
-        image = Image.open(io.BytesIO(content)).convert('RGB')
-      except IOError:
-        results.append(error("Invalid image format", sha1=sha1))
-        continue
-      except Exception as e:
-        results.append(error("An unexpected error occurred while processing the image", sha1=sha1))
-        continue
-      invert = nn.pred(image)
-      r.set(sha1, invert)
-      results.append({"invert": invert, "sha1": sha1, "error": ""})
-    return results
+    @app.post("/api/file")
+    async def process_files(files: list[UploadFile]) -> list[dict[str, Any]]:
+        results = []
 
-  async def fetch_image(url: str) -> Union[dict, Tuple[bytes, str]]:
-    try:
-      async with aiohttp.ClientSession() as session:
-        async with session.get(url, max_redirects=10) as response:
-          # Check for non-success status
-          if response.status != 200:
-            return error("Failed to fetch image from URL")
-          content = await response.read()
-          content_type = response.headers.get('Content-Type', 'application/octet-stream')
-          return content, content_type
-    except Exception as e:
-      return error(f"Error: An unexpected error occurred while fetching the URL")
+        for file in files:
+            content = await file.read()
+            results.append(process_content(content, file.content_type))
 
-  @app.post("/api/url", response_class=ORJSONResponse)
-  async def process_urls(urls: list[str]) -> List[dict]:
-    urls_json = json.dumps(urls)
-    if (cached := r.get(urls_json)) is not None:
-      return ORJSONResponse(json.loads(cached))
-    results = []
-    for url in urls:
-      if (sha1 := r.get(url)) is not None:
-        if (invert := r.get(sha1)) is not None:
-            results.append({"invert": int(invert), "sha1": sha1, "error": "", "url": url})
-            continue
-      res = await fetch_image(url)
-      if type(res) == dict:
-        results.append(res)
-        continue
-      content, content_type = res
-      if not content:
-        results.appned(error("No image provided"))
-        continue
-      if content_type not in ["image/jpg", "image/jpeg", "image/png"]:
-        results.append(error("Only jpg, jpeg, and png (non-transparent) images are supported"))
-        continue
-      sha1 = hashlib.sha1(content).hexdigest()
-      r.set(url, sha1)
-      if (invert := r.get(sha1)) is not None:
-        results.append({"invert": int(invert), "sha1": sha1, "error": "", "url": url})
-        continue
-      try:
-        image = Image.open(io.BytesIO(content)).convert('RGB')
-      except IOError:
-        results.append(error("Invalid image format", sha1=sha1, url=url))
-        continue
-      except Exception as e:
-        results.append(error("An unexpected error occurred while processing the image", sha1=sha1, url=url))
-        continue
-      invert = nn.pred(image)
-      r.set(sha1, invert)
-      results.append({"invert": invert, "sha1": sha1, "error": "", "url": url})
-    r.set(urls_json, json.dumps(results))
-    r.expire(urls_json, 86400)
-    return ORJSONResponse(results)
+        return results
 
-  @app.post("/api/sha1")
-  async def process_sha1s(sha1s: list[str]) -> List[dict]:
-    results = []
-    for sha1 in sha1s:
-      if (invert := r.get(sha1)) is not None:
-        results.append({"invert": int(invert), "sha1": sha1, "error": ""})
-      else:
-        results.append(error("No image found with the provided SHA1 hash"))
-    return results
+    @app.post("/api/url", response_class=ORJSONResponse)
+    async def process_urls(urls: list[str]) -> list[dict[str, Any]]:
+        urls_json = json.dumps(urls)
+        if (cached := r.get(urls_json)) is not None:
+            return ORJSONResponse(json.loads(cached))
 
-  return app
+        results = [
+            api_result(invert=int(invert), sha1=sha1, url=url)
+            for url in urls
+            if (sha1 := r.get(url)) is not None and (invert := r.get(sha1)) is not None
+        ]
+        urls = [url for url in urls if url not in [result["url"] for result in results]]
+        fetched = await asyncio.gather(*[fetch_image(url) for url in urls])
+
+        for url, res in zip(urls, fetched):
+            if isinstance(res, dict):
+                results.append(res)
+                continue
+
+            content, content_type = res
+            results.append(process_content(content, content_type, url=url))
+
+        r.set(urls_json, json.dumps(results), ex=86400)
+
+        return results
+
+    @app.post("/api/sha1")
+    async def process_sha1s(sha1s: list[str]) -> list[dict]:
+        results = []
+
+        for sha1 in sha1s:
+            if (invert := r.get(sha1)) is None:
+                results.append(error("No image found with the provided SHA1 hash"))
+            else:
+                results.append(api_result(invert=int(invert), sha1=sha1))
+
+        return results
+
+    return app
+
 
 app = create_app()
