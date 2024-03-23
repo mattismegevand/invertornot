@@ -35,7 +35,7 @@ def img_to_np(img: Image) -> np.ndarray:
 class NN:
     def __init__(self, model_path: str) -> None:
         self.sess = onnxruntime.InferenceSession(
-            model_path, providers=["CPUExecutionProvider"]
+            model_path, providers=["CPUExecutionProvider"],
         )
 
     def pred(self, img: Image) -> int:

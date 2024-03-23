@@ -9,9 +9,10 @@ import aiohttp
 import redis
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from nn import NN
 from PIL import Image
 from starlette.responses import FileResponse
+
+from nn import NN
 
 REDIS_CONFIG = {"host": "localhost", "port": 6379, "decode_responses": True}
 ONNX_MODEL_PATH = "model.onnx"
@@ -21,7 +22,7 @@ nn = NN(ONNX_MODEL_PATH)
 
 
 def api_result(
-    *, error: str = "", invert: int = -1, sha1: str = "", url: str = ""
+    *, error: str = "", invert: int = -1, sha1: str = "", url: str = "",
 ) -> dict[Any, Any]:
     result = {"invert": invert, "sha1": sha1, "error": error}
     if url:
@@ -48,16 +49,16 @@ async def fetch_image(url: str) -> dict[Any, Any] | tuple[bytes, str]:
 
                 content = await response.read()
                 content_type = response.headers.get(
-                    "Content-Type", "application/octet-stream"
+                    "Content-Type", "application/octet-stream",
                 )
 
                 return content, content_type
-    except Exception as e:
-        return error(f"Error: An unexpected error occurred while fetching the URL")
+    except Exception:
+        return error("Error: An unexpected error occurred while fetching the URL")
 
 
 def process_content(
-    content: bytes, content_type: str, *, url: str = ""
+    content: bytes, content_type: str, *, url: str = "",
 ) -> dict[Any, Any]:
     if not content:
         return error("No image provided")
@@ -72,9 +73,9 @@ def process_content(
 
     try:
         image = Image.open(io.BytesIO(content)).convert("RGB")
-    except IOError:
+    except OSError:
         return error("Invalid image format", sha1=sha1, url=url)
-    except Exception as e:
+    except Exception:
         return error(
             "An unexpected error occurred while processing the image",
             sha1=sha1,
