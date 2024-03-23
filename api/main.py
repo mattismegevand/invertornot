@@ -1,11 +1,13 @@
 import hashlib
 import io
+import json
 from typing import List, Tuple, Union
 
 import aiohttp
 import redis
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 from nn import NN
 from PIL import Image
 from starlette.responses import FileResponse
@@ -76,10 +78,17 @@ def create_app() -> FastAPI:
     except Exception as e:
       return error(f"Error: An unexpected error occurred while fetching the URL")
 
-  @app.post("/api/url")
+  @app.post("/api/url", response_class=ORJSONResponse)
   async def process_urls(urls: list[str]) -> List[dict]:
+    urls_json = json.dumps(urls)
+    if (cached := r.get(urls_json)) is not None:
+      return ORJSONResponse(json.loads(cached))
     results = []
     for url in urls:
+      if (sha1 := r.get(url)) is not None:
+        if (invert := r.get(sha1)) is not None:
+            results.append({"invert": int(invert), "sha1": sha1, "error": "", "url": url})
+            continue
       res = await fetch_image(url)
       if type(res) == dict:
         results.append(res)
@@ -92,6 +101,7 @@ def create_app() -> FastAPI:
         results.append(error("Only jpg, jpeg, and png (non-transparent) images are supported"))
         continue
       sha1 = hashlib.sha1(content).hexdigest()
+      r.set(url, sha1)
       if (invert := r.get(sha1)) is not None:
         results.append({"invert": int(invert), "sha1": sha1, "error": "", "url": url})
         continue
@@ -106,7 +116,9 @@ def create_app() -> FastAPI:
       invert = nn.pred(image)
       r.set(sha1, invert)
       results.append({"invert": invert, "sha1": sha1, "error": "", "url": url})
-    return results
+    r.set(urls_json, json.dumps(results))
+    r.expire(urls_json, 86400)
+    return ORJSONResponse(results)
 
   @app.post("/api/sha1")
   async def process_sha1s(sha1s: list[str]) -> List[dict]:
