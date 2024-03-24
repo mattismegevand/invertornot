@@ -45,6 +45,7 @@
             </div>
         </div>
 
+        <h4>Background</h4>
         <p>
             Despite dark-mode's popularity, images often aren't automatically adapted to fit it.
             The conservative approach is to reduce the brightness of the image, which can degrade it significantly.
@@ -59,7 +60,7 @@
             much more reliable approach to solve this problem, the only alternative being heuristics.</p>
 
         <h4>How can I use it?</h4>
-        API documentations are available <a href="/docs/">here.</a><br>
+        Documentation is available <a href="/docs/">here.</a><br>
         <br>
         <table style="width: 100%;">
             <thead>
@@ -119,11 +120,12 @@
             </code>
         </pre>
 
-        In order to adapt the images those two CSS filters works well:
+        If you've never adapted images for dark-mode, here's a quick example of what it can look like:
         <ul>
             <li>no inversion: <code>filter: grayscale(50%);</code></li>
             <li>inversion: <code>filter: grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg);</code></li>
         </ul>
+        Feel free to tweak these based on your dark mode setup
 
         <h4>Goal</h4>
         <p>
@@ -135,18 +137,16 @@
         <h4>Support</h4>
         <p>
             invertornot offers no warranties or guaranties and is done on a best-effort basis.
-            If you need reliable or large-scale inversion APIs, I strongly recommend you download the FOSS code and
-            model and run
-            your own instance. The model is lightweight (16MB) and can be run on a CPU.
+            If you need reliable or large-scale inversion APIs, I strongly recommend you download the FLOSS code and
+            model and run your own instance. The model is lightweight (16MB) and can be run on a CPU (≈ 100ms using onnxruntime).
         </p>
 
         <h4>Side note</h4>
         <p>
-            Images may be saved for training purposes if you do not want your images to be saved, consider hosting your
-            own
-            instance.
+            Images may be retained for training purposes. Should you prefer your images not be saved, hosting your own instance
+            is recommended. Additionally, it's important to note that these images will not be distributed; they are solely used
+            for training purposes
         </p>
-
 
         <div class="footer" style="padding: 20px; font-family: 'Courier New', Courier, monospace;">
             <div style="float: left;">
