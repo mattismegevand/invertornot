@@ -1,0 +1,96 @@
+:root {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --accent-color: #bb86fc;
+    --font-family: 'IBM Plex Sans', sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-family);
+}
+
+.container {
+    max-width: 960px;
+    margin: auto;
+    padding: 20px;
+}
+
+h1,
+h2 {
+    color: var(--accent-color);
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 20px;
+    margin: 20px 0;
+}
+
+code {
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+a {
+    color: var(--accent-color);
+}
+
+p,
+label {
+    line-height: 1.6;
+}
+
+input[type="file"] {
+    margin-top: 10px;
+}
+
+button {
+    background-color: var(--accent-color);
+    color: var(--bg-color);
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-family);
+    margin-top: 10px;
+}
+
+.image-display-area {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+#originalImageContainer,
+#transformedImageContainer {
+    flex: 1;
+    text-align: center;
+}
+
+.result-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.hidden {
+    display: none;
+}
+
+table,
+th,
+td {
+    border: 1px solid var(--accent-color);
+    border-collapse: collapse;
+    padding: 10px;
+    text-align: left;
+}

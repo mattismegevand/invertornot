@@ -5,98 +5,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>invertornot</title>
-    <style>
-        :root {
-            --bg-color: #121212;
-            --text-color: #e0e0e0;
-            --accent-color: #bb86fc;
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: var(--font-family);
-        }
-
-        .container {
-            max-width: 960px;
-            margin: auto;
-            padding: 20px;
-        }
-
-        h1,
-        h2 {
-            color: var(--accent-color);
-            text-align: left;
-            font-family: Consolas, monospace;
-        }
-
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-
-        h2 {
-            font-size: 20px;
-            margin: 20px 0;
-        }
-
-        p,
-        label {
-            line-height: 1.6;
-        }
-
-        input[type="file"] {
-            margin-top: 10px;
-        }
-
-        button {
-            background-color: var(--accent-color);
-            color: var(--bg-color);
-            padding: 10px 20px;
-            border: none;
-            cursor: pointer;
-            font-family: var(--font-family);
-            margin-top: 10px;
-        }
-
-        .image-display-area {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 20px;
-        }
-
-        #originalImageContainer,
-        #transformedImageContainer {
-            flex: 1;
-            text-align: center;
-        }
-
-        .result-image {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .hidden {
-            display: none;
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css">
 </head>
 
 <body>
     <div class="container">
         <h1>invertornot</h1>
-        <p>Make your app's dark mode smarter with invertornot. Our API predicts if an image should be inverted for
+        <p>
+            Make your app's dark-mode smarter with invertornot. Our API predicts if an image should be inverted for
             optimal
-            dark-mode rendering.</p>
+            dark-mode rendering. <br>
+            This API is free, and is open source (both the code and the weights of the model are <a
+                href="https://github.com/mattismegevand/invertornot">available</a>).
+        </p>
 
-        <h3>Try It Out</h3>
-        <p>Upload an image to see how invertornot can transform it for dark mode:</p>
+        <img src="static/examples.png" width="100%" alt="Example of ouputs">
+
+        <h4>Try it out</h4>
+        <p>Upload an image to see invertornot what transformation it would apply to it.</p>
         <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
             <input type="file" id="imageUpload" accept="image/*">
             <button onclick="transformImage()">Transform Image</button>
@@ -114,24 +45,55 @@
             </div>
         </div>
 
-        <p>Despite dark mode's popularity, images often aren't automatically adapted to fit it, creating a visual
-            mismatch and
-            potential eye strain in low-light conditions. Using our API you can make your website more pleasant to use
-            in
-            dark-mode.</p>
+        <p>
+            Despite dark-mode's popularity, images often aren't automatically adapted to fit it.
+            The conservative approach is to reduce the brightness of the image, which can degrade it significantly.
+            Inverting the image can be a better solution, but it can't be applied to all images (see the poor Queen
+            Victoria).<br>
+            Using our API you can make your website more pleasant to use in dark-mode, without having to manually adapt
+            each image.
+        </p>
+        <h4>How does it work?</h4>
         <p>The API works by training an EfficientNet model on a custom dataset. By using deep learning we are able to
             have a
             much more reliable approach to solve this problem, the only alternative being heuristics.</p>
 
-        <p>API documentations are available <a href="/docs/">here.</a></p>
+        <h4>How can I use it?</h4>
+        API documentations are available <a href="/docs/">here.</a><br>
+        <br>
+        <table style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Endpoint</th>
+                    <th>Method</th>
+                    <th>Input</th>
+                    <th>Output</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>/api/file</code></td>
+                    <td><code>POST</code></td>
+                    <td>List of image files</td>
+                    <td>List of <code>{invert, sha1, error}</code> for each file.</td>
+                </tr>
+                <tr>
+                    <td><code>/api/url</code></td>
+                    <td><code>POST</code></td>
+                    <td>List of image URLs</td>
+                    <td>List of <code>{invert, sha1, error, url}</code> for each URL.</td>
+                </tr>
+                <tr>
+                    <td><code>/api/sha1</code></td>
+                    <td><code>POST</code></td>
+                    <td>List of SHA1 hashes</td>
+                    <td>List of <code>{invert, sha1, error}</code> for each SHA1.</td>
+                </tr>
+            </tbody>
+        </table>
 
-        <p>The dataset was labeled based on those following CSS filters:</p>
-        <ul>
-            <li>invert = 0: <code>filter: grayscale(50%);</code></li>
-            <li>invert = 1: <code>filter: grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg);</code></li>
-        </ul>
-
-        <h4>Usage example:</h4>
+        <br>
+        Example of a request:
         <pre>
             <code>
                 curl -X 'POST' \
@@ -157,11 +119,41 @@
             </code>
         </pre>
 
+        In order to adapt the images those two CSS filters works well:
+        <ul>
+            <li>no inversion: <code>filter: grayscale(50%);</code></li>
+            <li>inversion: <code>filter: grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg);</code></li>
+        </ul>
+
+        <h4>Goal</h4>
+        <p>
+            invertornot is a public demonstration and proof of concept of using a NN classifier to choose how to
+            handle images
+            in dark-mode.
+        </p>
+
+        <h4>Support</h4>
+        <p>
+            invertornot offers no warranties or guaranties and is done on a best-effort basis.
+            If you need reliable or large-scale inversion APIs, I strongly recommend you download the FOSS code and
+            model and run
+            your own instance. The model is lightweight (16MB) and can be run on a CPU.
+        </p>
+
+        <h4>Side note</h4>
+        <p>
+            Images may be saved for training purposes if you do not want your images to be saved, consider hosting your
+            own
+            instance.
+        </p>
+
+
         <div class="footer" style="padding: 20px; font-family: 'Courier New', Courier, monospace;">
             <div style="float: left;">
-                Made by Mattis Megevand, code <a href="https://github.com/mattismegevand/invertornot/">here</a></div>
+                Made by <a href="https://mattismegevand.com">Mattis Megevand</a>, code <a
+                    href="https://github.com/mattismegevand/invertornot/">here</a></div>
             <div style="float: right;">
-                This idea was inspired by <a href="">Gwern</a>
+                This idea was inspired by <a href="https://gwern.net/idea#invertornot">Gwern</a>
             </div>
         </div>
     </div>

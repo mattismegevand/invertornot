@@ -11,6 +11,7 @@ import redis
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from starlette.responses import FileResponse
 from nn import NN
@@ -99,7 +100,7 @@ def process_content(
 
 
 def create_app() -> FastAPI:
-    app = FastAPI()
+    app = FastAPI(title="invertornot.com")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -107,10 +108,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
-    @app.get("/")
+    @app.get("/", include_in_schema=False)
     async def read_index():
-        return FileResponse("index.html")
+        return FileResponse("static/index.html")
 
     @app.post("/api/file")
     async def process_files(files: list[UploadFile]) -> list[dict[str, Any]]:
