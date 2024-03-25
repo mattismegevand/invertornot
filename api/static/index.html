@@ -51,9 +51,13 @@
         <h4>Try it out</h4>
         <p>Upload an image to see InvertOrNot what transformation it would apply to it.</p>
         <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
-            <input type="file" id="imageUpload" accept="image/*">
-            <button onclick="transformImage()">Classify & Transform Image!</button><br>
-            <button onclick="testRandomImage()">Classifiy & Test Random Image!</button>
+            <div style="width: 100%; display: flex; justify-content: space-between;">
+                <button onclick="testRandomImage()">Classifiy & Test Random Image!</button>
+                <div>
+                    <input type="file" id="imageUpload" accept="image/*">
+                    <button onclick="transformImage()">Classify & Transform Image!</button>
+                </div>
+            </div>
             <div class="image-display-area">
                 <div id="originalImageContainer" class="hidden">
                     <h4>Original Image</h4>
@@ -288,7 +292,7 @@
             try {
                 const response = await fetch('/api/url', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify([randomURL]),
                 });
 
