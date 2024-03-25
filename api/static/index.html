@@ -52,7 +52,7 @@
         <p>Upload an image to see InvertOrNot what transformation it would apply to it.</p>
         <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
             <div style="width: 100%; display: flex; justify-content: space-between;">
-                <button onclick="testRandomImage()">Classifiy & Test Random Image!</button>
+                <button onclick="testRandomImage()">Classify & Test Random Image!</button>
                 <div>
                     <input type="file" id="imageUpload" accept="image/*">
                     <button onclick="transformImage()">Classify & Transform Image!</button>
@@ -244,13 +244,12 @@
                 transformedImage.src = e.target.result;
                 transformedImage.style.display = 'block';
                 transformedImgContainer.classList.remove('hidden');
-                // Update the filter based on whether the image should be inverted or not.
                 if (shouldInvert === 1) {
                     transformedImage.style.filter = 'grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg)';
-                    resultExplanation.innerHTML = 'Result: Inverted; the image on the right has been inverted for optimal dark-mode rendering.';
+                    resultExplanation.innerHTML = 'Result: <b>Inverted</b>; the image on the right has been inverted for optimal dark-mode rendering.';
                 } else {
                     transformedImage.style.filter = 'grayscale(50%)';
-                    resultExplanation.innerHTML = 'Result: Not Inverted; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
+                    resultExplanation.innerHTML = 'Result: <b>Not Inverted</b>; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
                 }
                 resultExplanation.classList.remove('hidden'); // Show the explanation
             };
@@ -756,10 +755,10 @@
             // Update the filter based on whether the image should be inverted or not.
             if (shouldInvert === 1) {
                 transformedImage.style.filter = 'grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg)';
-                resultExplanation.innerHTML = 'Result: Inverted; the image on the right has been inverted for optimal dark-mode rendering.';
+                resultExplanation.innerHTML = 'Result: <b>Inverted</b>; the image on the right has been inverted for optimal dark-mode rendering.';
             } else {
                 transformedImage.style.filter = 'grayscale(50%)';
-                resultExplanation.innerHTML = 'Result: Not Inverted; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
+                resultExplanation.innerHTML = 'Result: <b>Not Inverted</b>; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
             }
             resultExplanation.classList.remove('hidden'); // Show the explanation
         }
