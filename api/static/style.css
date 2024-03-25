@@ -77,9 +77,11 @@ button {
 }
 
 .result-image {
-    max-width: 100%;
+    width: 85%;
     height: auto;
     display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .hidden {
