@@ -5,6 +5,9 @@ import hashlib
 import io
 import json
 from typing import Any
+from contextlib import asynccontextmanager
+from os import getenv
+
 
 import aiohttp
 import redis
@@ -16,11 +19,17 @@ from PIL import Image
 from starlette.responses import FileResponse
 from nn import NN
 
-REDIS_CONFIG = {"host": "localhost", "port": 6379, "decode_responses": True}
-ONNX_MODEL_PATH = "model.onnx"
+REDIS_CONFIG = {
+    "host": getenv("REDIS_HOST", "localhost"),
+    "port": int(getenv("REDIS_PORT", 6379)),
+    "decode_responses": True,
+}
+ONNX_MODEL_PATH = getenv("ONNX_MODEL_PATH", "model.onnx")
+FETCH_MAX_SIZE = int(getenv("FETCH_MAX_SIZE", 25 * 1024 * 1024))
+MAX_IMAGES_PER_REQUEST = int(getenv("MAX_IMAGES_PER_REQUEST", 250))
 
-r = redis.Redis(**REDIS_CONFIG)
-nn = NN(ONNX_MODEL_PATH)
+r: redis.Redis = None
+nn: NN = None
 
 
 def api_result(
@@ -53,6 +62,12 @@ async def fetch_image(url: str) -> dict[str, Any] | tuple[bytes, str]:
                 if response.status != 200:
                     return error("Failed to fetch image from URL")
 
+                content_length = response.headers.get("Content-Length")
+                if content_length:
+                    content_length = int(content_length)
+                    if content_length > FETCH_MAX_SIZE:
+                        return {"error": "File size exceeds limit"}
+
                 content = await response.read()
                 content_type = response.headers.get(
                     "Content-Type",
@@ -77,7 +92,8 @@ def process_content(
         return error("Only jpg, jpeg, and png (non-transparent) images are supported")
 
     sha1 = hashlib.sha1(content).hexdigest()
-    r.set(url, sha1)
+    if url:
+        r.set(url, sha1)
 
     if (invert := r.get(sha1)) is not None:
         return api_result(invert=int(invert), sha1=sha1, url=url)
@@ -100,7 +116,14 @@ def process_content(
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="invertornot.com")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        global r, nn
+        r = redis.Redis(**REDIS_CONFIG)
+        nn = NN(ONNX_MODEL_PATH)
+        yield
+
+    app = FastAPI(title="invertornot.com", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -116,6 +139,8 @@ def create_app() -> FastAPI:
 
     @app.post("/api/file")
     async def process_files(files: list[UploadFile]) -> list[dict[str, Any]]:
+        if len(files) > MAX_IMAGES_PER_REQUEST:
+            return [error("Too many files provided")]
         results = []
 
         for file in files:
@@ -126,9 +151,8 @@ def create_app() -> FastAPI:
 
     @app.post("/api/url", response_class=ORJSONResponse)
     async def process_urls(urls: list[str]) -> list[dict[str, Any]]:
-        urls_json = json.dumps(urls)
-        if (cached := r.get(urls_json)) is not None:
-            return ORJSONResponse(json.loads(cached))
+        if len(urls) > MAX_IMAGES_PER_REQUEST:
+            return [error("Too many URLs provided")]
 
         results = [
             api_result(invert=int(invert), sha1=sha1, url=url)
@@ -146,8 +170,6 @@ def create_app() -> FastAPI:
             content, content_type = res
             results.append(process_content(content, content_type, url=url))
 
-        r.set(urls_json, json.dumps(results), ex=86400)
-
         return results
 
     @app.post("/api/sha1")
@@ -155,12 +177,21 @@ def create_app() -> FastAPI:
         results = []
 
         for sha1 in sha1s:
-            if (invert := r.get(sha1)) is None:
-                results.append(error("No image found with the provided SHA1 hash"))
-            else:
+            if (invert := r.get(sha1)) is not None:
                 results.append(api_result(invert=int(invert), sha1=sha1))
+            else:
+                results.append(error("No image found with the provided SHA1 hash"))
 
         return results
+
+    @app.post("/api/bad")
+    async def bad(urls: list[str]) -> None:
+        for url in urls:
+            if (sha1 := r.get(url)) is not None and (invert := r.get(sha1)) is not None:
+                correct = 1 - int(invert)
+                r.lpush("bad", json.dumps({"url": url, "correct": correct}))
+                r.set(sha1, correct)
+        return
 
     return app
 
