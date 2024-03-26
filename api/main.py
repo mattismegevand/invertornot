@@ -151,6 +151,10 @@ def create_app() -> FastAPI:
 
     @app.post("/api/url", response_class=ORJSONResponse)
     async def process_urls(urls: list[str]) -> list[dict[str, Any]]:
+        urls_json = json.dumps(urls)
+        if (cached := r.get(urls_json)) is not None:
+            return ORJSONResponse(json.loads(cached))
+
         if len(urls) > MAX_IMAGES_PER_REQUEST:
             return [error("Too many URLs provided")]
 
@@ -170,6 +174,8 @@ def create_app() -> FastAPI:
             content, content_type = res
             results.append(process_content(content, content_type, url=url))
 
+        r.set(urls_json, json.dumps(results), ex=86400)
+
         return results
 
     @app.post("/api/sha1")
@@ -188,9 +194,7 @@ def create_app() -> FastAPI:
     async def bad(urls: list[str]) -> None:
         for url in urls:
             if (sha1 := r.get(url)) is not None and (invert := r.get(sha1)) is not None:
-                correct = 1 - int(invert)
-                r.lpush("bad", json.dumps({"url": url, "correct": correct}))
-                r.set(sha1, correct)
+                r.lpush("bad", json.dumps({"url": url, "correct": 1 - int(invert)}))
         return
 
     return app
