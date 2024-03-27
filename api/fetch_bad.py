@@ -14,11 +14,6 @@ OUT_FILE = "bad.json"
 
 if __name__ == "__main__":
     r = redis.Redis(**REDIS_CONFIG)
-    reports_json = r.lrange("reports", 0, -1)
-    new = [json.loads(report)["url"] for report in reports_json]
-    if os.path.exists(OUT_FILE):
-        with open(OUT_FILE, "r") as f:
-            old = json.load(f)
-        new = list(set(new + old))
+    out = [json.loads(s) for s in r.lrange("bad", 0, -1)]
     with open(OUT_FILE, "w") as f:
-        json.dump(new, f, indent=2)
+        json.dump(out, f, indent=2)
