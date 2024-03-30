@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 
-import redis
-import json
-import os
-import aiohttp
-import aiofiles
 import asyncio
 import hashlib
-from PIL import Image
 import io
-
+import json
+import os
 from typing import Any
+
+import aiohttp
+import redis
+from PIL import Image
 
 REDIS_CONFIG = {
     "host": os.getenv("REDIS_HOST", "localhost"),

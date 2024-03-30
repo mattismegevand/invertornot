@@ -4,10 +4,9 @@ import asyncio
 import hashlib
 import io
 import json
-from typing import Any
 from contextlib import asynccontextmanager
 from os import getenv
-
+from typing import Any
 
 import aiohttp
 import redis
@@ -15,9 +14,9 @@ from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
+from nn import NN
 from PIL import Image
 from starlette.responses import FileResponse
-from nn import NN
 
 REDIS_CONFIG = {
     "host": getenv("REDIS_HOST", "localhost"),
