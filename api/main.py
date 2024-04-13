@@ -189,11 +189,11 @@ def create_app() -> FastAPI:
 
         return results
 
-    @app.post("/api/bad")
-    async def bad(urls: list[str]) -> None:
+    @app.post("/api/correction")
+    async def correction(urls: list[str]) -> None:
         for url in urls:
             if (sha1 := r.get(url)) is not None and (invert := r.get(sha1)) is not None:
-                r.lpush("bad", json.dumps({"url": url, "correct": 1 - int(invert)}))
+                r.lpush("correction", json.dumps({"url": url, "correct": 1 - int(invert)}))
         return
 
     return app

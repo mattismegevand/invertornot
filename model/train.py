@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import os
 import random
 from collections import Counter
@@ -13,27 +14,19 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 from tqdm import tqdm
 
-BATCH_SIZE = 16
-EPOCHS = 20
+SEED = 1337
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def set_seed(seed_value=42):
-    random.seed(seed_value)
-    np.random.seed(seed_value)
-    torch.manual_seed(seed_value)
-    torch.cuda.manual_seed_all(seed_value)
-
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-
-set_seed(42)
-
-
 class CustomDataset(Dataset):
-    def __init__(self, root_dir, transform=None, train=True, split_ratio=0.9):
+    def __init__(self, root_dir, transform=None, train=True, split_ratio=0.9, finetune=False):
         self.root_dir = root_dir
         self.transform = transform
         self.train = train
@@ -50,28 +43,32 @@ class CustomDataset(Dataset):
                 temp_images.append(os.path.join(cls_folder, img_name))
                 temp_labels.append(idx)
 
-        counter = Counter(temp_labels)
-        max_count = max(counter.values())
-        for cls_idx in counter.keys():
-            cls_indices = [i for i, x in enumerate(temp_labels) if x == cls_idx]
-            while counter[cls_idx] < max_count:
-                index = random.choice(cls_indices)
-                temp_images.append(temp_images[index])
-                temp_labels.append(temp_labels[index])
-                counter[cls_idx] += 1
-
-        dataset_size = len(temp_images)
-        split = int(np.floor(split_ratio * dataset_size))
-        indices = list(range(dataset_size))
-        np.random.shuffle(indices)
-
-        if self.train:
-            indices = indices[:split]
-        else:
-            indices = indices[split:]
+        indices = self.get_indices(temp_images, temp_labels, split_ratio, finetune)
 
         self.images = [temp_images[i] for i in indices]
         self.labels = [temp_labels[i] for i in indices]
+
+    def get_indices(self, temp_images, temp_labels, split_ratio, finetune):
+        if finetune:
+            # use all images for finetuning since we want to be correct on all mistakes signaled
+            indices = list(range(len(temp_images)))
+        else:
+            counter = Counter(temp_labels)
+            max_count = max(counter.values())
+            for cls_idx in counter.keys():
+                cls_indices = [i for i, x in enumerate(temp_labels) if x == cls_idx]
+                while counter[cls_idx] < max_count:
+                    index = random.choice(cls_indices)
+                    temp_images.append(temp_images[index])
+                    temp_labels.append(temp_labels[index])
+                    counter[cls_idx] += 1
+
+            dataset_size = len(temp_images)
+            split = int(np.floor(split_ratio * dataset_size))
+            indices = list(range(dataset_size))
+            np.random.shuffle(indices)
+            indices = indices[:split] if self.train else indices[split:]
+        return indices
 
     def __len__(self):
         return len(self.images)
@@ -91,19 +88,19 @@ def init_model():
     return model
 
 
-def train_model(model, train_loader, test_loader):
+def train_model(model, train_loader, test_loader, lr, epochs):
     criterion = nn.BCELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     best_val_accuracy = 0.0
 
-    for epoch in range(EPOCHS):
+    for epoch in range(epochs):
         model.train()
         train_loss = 0.0
         train_correct = 0
         total_items = 0
-        tqdm_bar = tqdm(train_loader, desc=f"Training Epoch {epoch+1}/{EPOCHS}", total=len(train_loader))
+        tqdm_bar = tqdm(train_loader, desc=f"Training Epoch {epoch+1}/{epochs}", total=len(train_loader))
 
         for inputs, labels in tqdm_bar:
             inputs, labels = inputs.to(device), labels.to(device).float().view(-1, 1)
@@ -144,7 +141,7 @@ def train_model(model, train_loader, test_loader):
             print(f"Epoch {epoch+1}: Model saved with validation accuracy: {val_accuracy:.2f}")
 
         print(
-            f"Epoch {epoch+1}/{EPOCHS}. "
+            f"Epoch {epoch+1}/{epochs}. "
             f"Train Loss: {train_loss:.3f}, Train Acc: {train_accuracy:.2f}. "
             f"Val Loss: {val_loss:.3f}, Val Acc: {val_accuracy:.2f}"
         )
@@ -158,6 +155,13 @@ def correct_count(outputs, labels):
 
 
 if __name__ == "__main__":
+    argparse = argparse.ArgumentParser()
+    argparse.add_argument("--batch_size", type=int, default=16, help="Batch size")
+    argparse.add_argument("--epochs", type=int, default=20, help="Number of epochs")
+    argparse.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
+    argparse.add_argument("--pth", help="Path to the model.pth file to finetune")
+    args = argparse.parse_args()
+
     train_transform = v2.Compose(
         [
             v2.ToImage(),
@@ -179,11 +183,18 @@ if __name__ == "__main__":
         ]
     )
 
-    train_dataset = CustomDataset(root_dir="dataset/", transform=train_transform, train=True)
-    test_dataset = CustomDataset(root_dir="dataset/", transform=test_transform, train=False)
-
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
-
     model = init_model()
-    train_model(model, train_loader, test_loader)
+
+    if args.pth:
+        model.load_state_dict(torch.load(args.pth, map_location=device))
+        model = model.to(device)
+        train_dataset = CustomDataset(root_dir="corrections/", transform=train_transform, finetune=True)
+        test_dataset = CustomDataset(root_dir="corrections/", transform=test_transform, finetune=False)
+    else:
+        train_dataset = CustomDataset(root_dir="dataset/", transform=train_transform, train=True)
+        test_dataset = CustomDataset(root_dir="dataset/", transform=test_transform, train=False)
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+
+    train_model(model, train_loader, test_loader, args.lr, args.epochs)

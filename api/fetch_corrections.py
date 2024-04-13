@@ -5,7 +5,6 @@ import hashlib
 import io
 import json
 import os
-from typing import Any
 
 import aiohttp
 import redis
@@ -16,7 +15,7 @@ REDIS_CONFIG = {
     "port": int(os.getenv("REDIS_PORT", 6379)),
     "decode_responses": True,
 }
-OUT_FILE = "bad.json"
+OUT_FILE = "corrections.json"
 
 
 async def save_image_as_png(content, path):
@@ -28,10 +27,9 @@ async def save_image_as_png(content, path):
 
 async def main():
     r = redis.Redis(**REDIS_CONFIG)
-    out = [json.loads(s) for s in r.lrange("bad", 0, -1)]
-    os.makedirs("corrections", exist_ok=True)
-    os.makedirs("corrections/brightness", exist_ok=True)
-    os.makedirs("corrections/invert", exist_ok=True)
+    out = [json.loads(s) for s in r.lrange("correction", 0, -1)]
+    for d in ["corrections", "corrections/brightness", "corrections/invert"]:
+        os.makedirs(d, exist_ok=True)
     for url, correct in [o.values() for o in out]:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, max_redirects=10) as response:
