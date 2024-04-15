@@ -140,8 +140,15 @@
                     <td>List of SHA-1 hashes</td>
                     <td>List of <code>{invert, sha1, error}</code> for each SHA-1.</td>
                 </tr>
+                <tr>
+                    <td><code>/api/correction</code></td>
+                    <td><code>POST</code></td>
+                    <td>List of image URLs</td>
+                    <td>Nothing*</td>
+                </tr>
             </tbody>
         </table>
+        <i style="font-size: small; text-align: right; display: block;">*This endpoint is used to report mistakes made by the model such that later updates will fix those.</i>
 
         <br>
         Example of a request:
