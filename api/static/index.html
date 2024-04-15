@@ -13,8 +13,8 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="InvertOrNot">
     <meta property="og:image" content="https://invertornot.com/static/queen_victoria.png">
-    <meta property="og:image:width" content="2729"/>
-    <meta property="og:image:height" content="2729"/>
+    <meta property="og:image:width" content="2729" />
+    <meta property="og:image:height" content="2729" />
     <meta property="og:title" content="InvertOrNot - Smart Dark-Mode Image Inversion">
     <meta property="og:description"
         content="InvertOrNot.com is a website for classifying images by how to display in web dark-mode">
@@ -35,11 +35,11 @@
         rel="stylesheet">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-RC9TV1B2R4"></script>
     <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
 
-    gtag('config', 'G-RC9TV1B2R4');
+        gtag('config', 'G-RC9TV1B2R4');
     </script>
     <link rel="stylesheet" href="static/style.css">
 </head>
@@ -60,6 +60,11 @@
         <h4>Try it out</h4>
         <p>Upload an image to see InvertOrNot what transformation it would apply to it.</p>
         <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
+            <div style="margin-bottom: 2px;">
+                <input type="text" id="urlInput" placeholder="Enter image URL here"
+                    style="width: 70%; padding: 10px; margin-right: 10px;">
+                <button onclick="classifyImageFromURL()">Classify Image From URL</button>
+            </div>
             <div style="width: 100%; display: flex; justify-content: space-between;">
                 <button onclick="testRandomImage()">Classify & Test Random Image!</button>
                 <div>
@@ -245,7 +250,7 @@
             reader.onload = function (e) {
                 const originalImgContainer = document.getElementById('originalImageContainer');
                 const transformedImgContainer = document.getElementById('transformedImageContainer');
-                const resultExplanation = document.getElementById('resultExplanation'); // Get the explanation div
+                const resultExplanation = document.getElementById('resultExplanation');
                 const originalImage = originalImgContainer.querySelector('img');
                 const transformedImage = transformedImgContainer.querySelector('img');
 
@@ -263,7 +268,7 @@
                     transformedImage.style.filter = 'grayscale(50%)';
                     resultExplanation.innerHTML = 'Result: <b>Not Inverted</b>; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
                 }
-                resultExplanation.classList.remove('hidden'); // Show the explanation
+                resultExplanation.classList.remove('hidden');
             };
             reader.readAsDataURL(file);
         }
@@ -473,9 +478,8 @@
             "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Nature_in_Hoa_Binh%2C_August_2003_11.jpg/800px-Nature_in_Hoa_Binh%2C_August_2003_11.jpg",
         ];
         async function testRandomImage() {
-            // Loop back to the start of the list if we've reached the end
             if (currentIndex >= imageURLs.length) {
-                currentIndex = 0; // Reset to the first image if you've reached the end
+                currentIndex = 0;
             }
 
             const imageURL = imageURLs[currentIndex];
@@ -503,18 +507,48 @@
                 console.error('Error calling the API:', error);
             }
 
-            // Preload the next image in the list
             preloadNextImage();
 
-            // Move to the next image, looping back to the start if necessary
             currentIndex = (currentIndex + 1) % imageURLs.length;
-
         }
+
+        async function classifyImageFromURL() {
+            const urlInput = document.getElementById('urlInput').value;
+            if (!urlInput) {
+                alert('Please enter a URL.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([urlInput]),
+                });
+
+                if (response.ok) {
+                    const results = await response.json();
+                    const result = results[0];
+
+                    if (result.error && result.error !== "") {
+                        console.error('Error from API:', result.error);
+                    } else {
+                        displayRandomImage(urlInput, result.invert);
+                    }
+                } else {
+                    console.error('API call failed:', response.status);
+                }
+            } catch (error) {
+                console.error('Error calling the API:', error);
+            }
+        }
+
+
         function preloadNextImage() {
             const nextIndex = (currentIndex + 1) % imageURLs.length;
             const nextImageURL = imageURLs[nextIndex];
-            const img = new Image(); // Create a new Image object
-            img.src = nextImageURL; // Set the source to preload
+            const img = new Image();
+            img.src = nextImageURL;
         }
 
         function displayRandomImage(imageURL, shouldInvert) {
@@ -531,7 +565,6 @@
             transformedImage.src = imageURL;
             transformedImage.style.display = 'block';
             transformedImgContainer.classList.remove('hidden');
-            // Update the filter based on whether the image should be inverted or not.
             if (shouldInvert === 1) {
                 transformedImage.style.filter = 'grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg)';
                 resultExplanation.innerHTML = 'Result: <b>Inverted</b>; the image on the right has been inverted for optimal dark-mode rendering.';
@@ -539,7 +572,7 @@
                 transformedImage.style.filter = 'grayscale(50%)';
                 resultExplanation.innerHTML = 'Result: <b>Not Inverted</b>; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
             }
-            resultExplanation.classList.remove('hidden'); // Show the explanation
+            resultExplanation.classList.remove('hidden');
         }
     </script>
 </body>

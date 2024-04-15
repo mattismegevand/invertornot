@@ -189,7 +189,7 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load(args.pth, map_location=device))
         model = model.to(device)
         train_dataset = CustomDataset(root_dir="corrections/", transform=train_transform, finetune=True)
-        test_dataset = CustomDataset(root_dir="corrections/", transform=test_transform, finetune=False)
+        test_dataset = CustomDataset(root_dir="corrections/", transform=test_transform, finetune=True)
     else:
         train_dataset = CustomDataset(root_dir="dataset/", transform=train_transform, train=True)
         test_dataset = CustomDataset(root_dir="dataset/", transform=test_transform, train=False)
