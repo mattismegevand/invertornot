@@ -50,24 +50,23 @@ class CustomDataset(Dataset):
 
     def get_indices(self, temp_images, temp_labels, split_ratio, finetune):
         if finetune:
-            # use all images for finetuning since we want to be correct on all mistakes signaled
-            indices = list(range(len(temp_images)))
-        else:
-            counter = Counter(temp_labels)
-            max_count = max(counter.values())
-            for cls_idx in counter.keys():
-                cls_indices = [i for i, x in enumerate(temp_labels) if x == cls_idx]
-                while counter[cls_idx] < max_count:
-                    index = random.choice(cls_indices)
-                    temp_images.append(temp_images[index])
-                    temp_labels.append(temp_labels[index])
-                    counter[cls_idx] += 1
+            return list(range(len(temp_images)))  # don't split for finetuning
 
-            dataset_size = len(temp_images)
-            split = int(np.floor(split_ratio * dataset_size))
-            indices = list(range(dataset_size))
-            np.random.shuffle(indices)
-            indices = indices[:split] if self.train else indices[split:]
+        counter = Counter(temp_labels)
+        max_count = max(counter.values())
+        for cls_idx in counter.keys():
+            cls_indices = [i for i, x in enumerate(temp_labels) if x == cls_idx]
+            while counter[cls_idx] < max_count:
+                index = random.choice(cls_indices)
+                temp_images.append(temp_images[index])
+                temp_labels.append(temp_labels[index])
+                counter[cls_idx] += 1
+
+        dataset_size = len(temp_images)
+        split = int(np.floor(split_ratio * dataset_size))
+        indices = list(range(dataset_size))
+        np.random.shuffle(indices)
+        indices = indices[:split] if self.train else indices[split:]
         return indices
 
     def __len__(self):
@@ -88,13 +87,11 @@ def init_model():
     return model
 
 
-def train_model(model, train_loader, test_loader, lr, epochs):
+def train_model(model, train_loader, test_loader, lr, epochs, out_prefix=""):
     criterion = nn.BCELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-
     best_val_accuracy = 0.0
-
     for epoch in range(epochs):
         model.train()
         train_loss = 0.0
@@ -137,7 +134,7 @@ def train_model(model, train_loader, test_loader, lr, epochs):
 
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
-            torch.save(model.state_dict(), "best_model.pth")
+            torch.save(model.state_dict(), out_prefix + "best_model.pth")
             print(f"Epoch {epoch+1}: Model saved with validation accuracy: {val_accuracy:.2f}")
 
         print(
@@ -146,7 +143,7 @@ def train_model(model, train_loader, test_loader, lr, epochs):
             f"Val Loss: {val_loss:.3f}, Val Acc: {val_accuracy:.2f}"
         )
 
-    torch.save(model.state_dict(), "model.pth")
+    torch.save(model.state_dict(), out_prefix + "model.pth")
 
 
 def correct_count(outputs, labels):
@@ -197,4 +194,4 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
-    train_model(model, train_loader, test_loader, args.lr, args.epochs)
+    train_model(model, train_loader, test_loader, args.lr, args.epochs, out_prefix="ft_" if args.pth else "")
