@@ -14,14 +14,6 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 from tqdm import tqdm
 
-SEED = 1337
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed_all(SEED)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -157,6 +149,7 @@ if __name__ == "__main__":
     argparse.add_argument("--epochs", type=int, default=20, help="Number of epochs")
     argparse.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     argparse.add_argument("--pth", help="Path to the model.pth file to finetune")
+    argparse.add_argument("--workers", type=int, default=0, help="Path to the model.pth file to finetune")
     args = argparse.parse_args()
 
     train_transform = v2.Compose(
@@ -191,7 +184,7 @@ if __name__ == "__main__":
         train_dataset = CustomDataset(root_dir="dataset/", transform=train_transform, train=True)
         test_dataset = CustomDataset(root_dir="dataset/", transform=test_transform, train=False)
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
 
     train_model(model, train_loader, test_loader, args.lr, args.epochs, out_prefix="ft_" if args.pth else "")
