@@ -58,7 +58,7 @@
         <img src="static/examples.png" width="100%" alt="Example of outputs">
 
         <h4>Try it out</h4>
-        <p>Upload an image (JPG, PNG, SVG, or PDF) to see what transformation InvertOrNot would apply to it.</p>
+        <p>Upload an image (JPG, PNG, WebP, SVG, or PDF) to see what transformation InvertOrNot would apply to it.</p>
         <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
             <div style="margin-bottom: 2px;">
                 <input type="text" id="urlInput" placeholder="Enter image URL here"
@@ -125,13 +125,13 @@
                 <tr>
                     <td><code>/api/file</code></td>
                     <td><code>POST</code></td>
-                    <td>List of image files (JPG, PNG, SVG, PDF)</td>
+                    <td>List of image files (JPG, PNG, WebP, SVG, PDF)</td>
                     <td>List of <code>{invert, sha1, error}</code> for each file.</td>
                 </tr>
                 <tr>
                     <td><code>/api/url</code></td>
                     <td><code>POST</code></td>
-                    <td>List of image URLs (JPG, PNG, SVG, PDF)</td>
+                    <td>List of image URLs (JPG, PNG, WebP, SVG, PDF)</td>
                     <td>List of <code>{invert, sha1, error, url}</code> for each URL.</td>
                 </tr>
                 <tr>

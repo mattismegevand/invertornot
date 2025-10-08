@@ -89,8 +89,8 @@ def process_content(
     if not content:
         return error("No image provided")
 
-    if content_type not in ("image/jpg", "image/jpeg", "image/png", "image/svg+xml", "application/pdf"):
-        return error("Only jpg, jpeg, png, svg, and pdf images are supported")
+    if content_type not in ("image/jpg", "image/jpeg", "image/png", "image/webp", "image/svg+xml", "application/pdf"):
+        return error("Only jpg, jpeg, png, webp, svg, and pdf images are supported")
 
     sha1 = hashlib.sha1(content).hexdigest()
     if url:
