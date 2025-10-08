@@ -13,13 +13,15 @@ The input is an image, and the output is a float in [0, 1] representing the prob
 ### api
 
 [API Endpoints](https://invertornot.com/docs)
-| Endpoint       | Method | Input                        | Output                                             |
-|----------------|--------|------------------------------|----------------------------------------------------|
-| `/api/file`    | POST   | List of image files          | List of `{invert, sha1, error}` for each file.     |
-| `/api/url`     | POST   | List of image URLs           | List of `{invert, sha1, error, url}` for each URL. |
-| `/api/sha1`    | POST   | List of SHA1 hashes          | List of `{invert, sha1, error}` for each SHA1.     |
+| Endpoint       | Method | Input                                      | Output                                             |
+|----------------|--------|--------------------------------------------|--------------------------------------------------- |
+| `/api/file`    | POST   | List of image files (JPG, PNG, SVG, PDF)   | List of `{invert, sha1, error}` for each file.     |
+| `/api/url`     | POST   | List of image URLs (JPG, PNG, SVG, PDF)    | List of `{invert, sha1, error, url}` for each URL. |
+| `/api/sha1`    | POST   | List of SHA1 hashes                        | List of `{invert, sha1, error}` for each SHA1.     |
 
 The API is built using FastAPI, and the model is run using ONNXRuntime for efficient inference.
+
+**Note:** For PDF files, only the first page is analyzed. SVG files are fully supported.
 
 ---
 

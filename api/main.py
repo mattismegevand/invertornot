@@ -9,6 +9,8 @@ from os import getenv
 from typing import Any
 
 import aiohttp
+import cairosvg
+import fitz
 import redis
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,8 +89,8 @@ def process_content(
     if not content:
         return error("No image provided")
 
-    if content_type not in ("image/jpg", "image/jpeg", "image/png"):
-        return error("Only jpg, jpeg, and png (non-transparent) images are supported")
+    if content_type not in ("image/jpg", "image/jpeg", "image/png", "image/svg+xml", "application/pdf"):
+        return error("Only jpg, jpeg, png, svg, and pdf images are supported")
 
     sha1 = hashlib.sha1(content).hexdigest()
     if url:
@@ -98,6 +100,15 @@ def process_content(
         return api_result(invert=int(invert), sha1=sha1, url=url)
 
     try:
+        # Convert SVG/PDF to PNG bytes first
+        if content_type == "image/svg+xml":
+            content = cairosvg.svg2png(bytestring=content)
+        elif content_type == "application/pdf":
+            doc = fitz.open(stream=content, filetype="pdf")
+            pix = doc[0].get_pixmap()
+            content = pix.tobytes("png")
+            doc.close()
+
         image = Image.open(io.BytesIO(content)).convert("RGB")
     except OSError:
         return error("Invalid image format", sha1=sha1, url=url)

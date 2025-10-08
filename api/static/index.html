@@ -58,7 +58,7 @@
         <img src="static/examples.png" width="100%" alt="Example of outputs">
 
         <h4>Try it out</h4>
-        <p>Upload an image to see InvertOrNot what transformation it would apply to it.</p>
+        <p>Upload an image (JPG, PNG, SVG, or PDF) to see what transformation InvertOrNot would apply to it.</p>
         <div style="border-style: solid; padding: 20px; border-color: var(--accent-color);">
             <div style="margin-bottom: 2px;">
                 <input type="text" id="urlInput" placeholder="Enter image URL here"
@@ -68,7 +68,7 @@
             <div style="width: 100%; display: flex; justify-content: space-between;">
                 <button onclick="testRandomImage()">Classify & Test Random Image!</button>
                 <div>
-                    <input type="file" id="imageUpload" accept="image/*">
+                    <input type="file" id="imageUpload" accept="image/*,application/pdf,.svg">
                     <button onclick="transformImage()">Classify & Transform Image!</button>
                     <noscript>
                         <p style="color: red;">This feature requires JavaScript to be enabled.</p>
@@ -125,13 +125,13 @@
                 <tr>
                     <td><code>/api/file</code></td>
                     <td><code>POST</code></td>
-                    <td>List of image files</td>
+                    <td>List of image files (JPG, PNG, SVG, PDF)</td>
                     <td>List of <code>{invert, sha1, error}</code> for each file.</td>
                 </tr>
                 <tr>
                     <td><code>/api/url</code></td>
                     <td><code>POST</code></td>
-                    <td>List of image URLs</td>
+                    <td>List of image URLs (JPG, PNG, SVG, PDF)</td>
                     <td>List of <code>{invert, sha1, error, url}</code> for each URL.</td>
                 </tr>
                 <tr>
@@ -261,19 +261,31 @@
                 const originalImage = originalImgContainer.querySelector('img');
                 const transformedImage = transformedImgContainer.querySelector('img');
 
-                originalImage.src = e.target.result;
-                originalImage.style.display = 'block';
-                originalImgContainer.classList.remove('hidden');
-
-                transformedImage.src = e.target.result;
-                transformedImage.style.display = 'block';
-                transformedImgContainer.classList.remove('hidden');
-                if (shouldInvert === 1) {
-                    transformedImage.style.filter = 'grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg)';
-                    resultExplanation.innerHTML = 'Result: <b>Inverted</b>; the image on the right has been inverted for optimal dark-mode rendering.';
+                // PDFs can't be displayed in img tags
+                if (file.type === 'application/pdf') {
+                    originalImgContainer.classList.add('hidden');
+                    transformedImgContainer.classList.add('hidden');
+                    if (shouldInvert === 1) {
+                        resultExplanation.innerHTML = 'Result for <b>' + file.name + '</b>: <b>Inverted</b>. The PDF (first page) should be inverted for optimal dark-mode rendering.';
+                    } else {
+                        resultExplanation.innerHTML = 'Result for <b>' + file.name + '</b>: <b>Not Inverted</b>. The PDF (first page) should be displayed without inversion, with slight dimming for dark-mode compatibility.';
+                    }
                 } else {
-                    transformedImage.style.filter = 'grayscale(50%)';
-                    resultExplanation.innerHTML = 'Result: <b>Not Inverted</b>; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
+                    originalImage.src = e.target.result;
+                    originalImage.style.display = 'block';
+                    originalImgContainer.classList.remove('hidden');
+
+                    transformedImage.src = e.target.result;
+                    transformedImage.style.display = 'block';
+                    transformedImgContainer.classList.remove('hidden');
+
+                    if (shouldInvert === 1) {
+                        transformedImage.style.filter = 'grayscale(50%) invert(100%) brightness(95%) hue-rotate(180deg)';
+                        resultExplanation.innerHTML = 'Result: <b>Inverted</b>; the image on the right has been inverted for optimal dark-mode rendering.';
+                    } else {
+                        transformedImage.style.filter = 'grayscale(50%)';
+                        resultExplanation.innerHTML = 'Result: <b>Not Inverted</b>; the image on the right is displayed without inversion, with slight dimming/greyscale for dark-mode compatibility.';
+                    }
                 }
                 resultExplanation.classList.remove('hidden');
             };
